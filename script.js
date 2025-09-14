@@ -28,5 +28,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Logic for passenger.html ---
+    const trackBusLink = document.getElementById('track-bus-link');
+    if (trackBusLink) {
+        trackBusLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = 'track.html';
+        });
+    }
+    
+    const findNearbyBtn = document.getElementById('find-nearby-btn');
+    if(findNearbyBtn) {
+        findNearbyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Placeholder for "Bus Stops Near Me" functionality
+            console.log("Finding nearby bus stops...");
+            alert("Feature coming soon!");
+        });
+    }
 
 });
