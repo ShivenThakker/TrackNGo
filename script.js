@@ -19,4 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+     // Finds the "Conductor" link/card and makes it link to conductor.html
+    const conductorLink = document.getElementById('conductor-link');
+    if (conductorLink) {
+        conductorLink.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevents the link from navigating to "#"
+            window.location.href = 'conductor.html';
+        });
+    }
+
+
 });
