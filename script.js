@@ -4,12 +4,17 @@ const closeModalBtn = document.getElementById('closeModalBtn');
 const modalContent = document.getElementById('modalContent');
 
 // Show the modal when "Get Started" is clicked
-getStartedBtn.addEventListener('click', () => {
-    messageModal.classList.remove('hidden');
-    setTimeout(() => {
-        modalContent.classList.remove('scale-95', 'opacity-0');
-    }, 10);
+document.addEventListener('DOMContentLoaded', () => {
+    const getStartedBtn = document.getElementById('getStartedBtn');
+
+    if (getStartedBtn) {
+        getStartedBtn.addEventListener('click', () => {
+            // Redirect to the login selection page
+            window.location.href = 'login.html';
+        });
+    }
 });
+
 
 function hideModal() {
     modalContent.classList.add('scale-95', 'opacity-0');
