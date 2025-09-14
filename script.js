@@ -1,34 +1,22 @@
-const getStartedBtn = document.getElementById('getStartedBtn');
-const messageModal = document.getElementById('messageModal');
-const closeModalBtn = document.getElementById('closeModalBtn');
-const modalContent = document.getElementById('modalContent');
-
-// Show the modal when "Get Started" is clicked
 document.addEventListener('DOMContentLoaded', () => {
-    const getStartedBtn = document.getElementById('getStartedBtn');
 
+    // --- Logic for index.html ---
+    // Finds the "Get Started" button and makes it link to login.html
+    const getStartedBtn = document.getElementById('getStartedBtn');
     if (getStartedBtn) {
         getStartedBtn.addEventListener('click', () => {
-            // Redirect to the login selection page
             window.location.href = 'login.html';
         });
     }
-});
 
-
-function hideModal() {
-    modalContent.classList.add('scale-95', 'opacity-0');
-    setTimeout(() => {
-        messageModal.classList.add('hidden');
-    }, 300);
-}
-
-// Hide the modal when the close button is clicked
-closeModalBtn.addEventListener('click', hideModal);
-
-// Hide the modal when clicking outside of it
-messageModal.addEventListener('click', (event) => {
-    if (event.target === messageModal) {
-        hideModal();
+    // --- Logic for login.html ---
+    // Finds the "Passenger" link/card and makes it link to passenger.html
+    const passengerLink = document.getElementById('passenger-link');
+    if (passengerLink) {
+        passengerLink.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevents the link from navigating to "#"
+            window.location.href = 'passenger.html';
+        });
     }
+
 });
