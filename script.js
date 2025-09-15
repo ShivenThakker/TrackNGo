@@ -78,39 +78,114 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- Logic for conductor.html ---
     const powerButton = document.getElementById('power-button');
     if (powerButton) {
+        let isTracking = false;
+        let locationWatcher = null; // This will hold our GPS watcher
+        const busNumberInput = document.getElementById('busNumber');
+        const routeNumberInput = document.getElementById('routeNumber');
         const statusText = document.getElementById('status-text');
         const statusDiv = document.getElementById('status');
+        
+        powerButton.addEventListener('click', async (e) => {
+            if (isTracking) {
+                // If we are already tracking, this button press means STOP.
+                stopTracking(busNumberInput.value.trim().toUpperCase());
+                return;
+            }
 
-        powerButton.addEventListener('click', (e) => {
-            const isActive = powerButton.classList.toggle('active');
+            const busNumber = busNumberInput.value.trim().toUpperCase();
+            const routeNumber = routeNumberInput.value.trim().toUpperCase();
 
+            if (!busNumber || !routeNumber) {
+                alert("Please enter both Bus Number and Route Number.");
+                return;
+            }
+
+            // --- DATABASE VALIDATION ---
+            const busRouteRef = doc(db, "bus_routes", busNumber);
+            try {
+                const docSnap = await getDoc(busRouteRef);
+                if (!docSnap.exists() || docSnap.data().routeNumber !== routeNumber) {
+                    alert("Invalid Bus or Route Number combination. Please re-check the details.");
+                    return;
+                }
+            } catch (error) {
+                console.error("Error validating bus route:", error);
+                alert("Could not verify details. Please check your internet connection.");
+                return;
+            }
+
+            // If validation is successful, start the tracking process
+            startTracking(busNumber, routeNumber, e);
+        });
+
+        function startTracking(busNumber, routeNumber, e) {
+            isTracking = true;
+            powerButton.classList.add('active');
+            statusText.textContent = 'Tap to Stop Tracking';
+            statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-green-500">ACTIVE</span>`;
+
+            // --- STEP 1.1: ACTIVATE GPS TRACKING ---
+            if (navigator.geolocation) {
+                locationWatcher = navigator.geolocation.watchPosition(
+                    // SUCCESS CALLBACK (This runs every time a new location is found)
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        console.log(`New location found for ${busNumber}:`, { latitude, longitude });
+                        
+                        // --- STEP 1.2: WRITE TO FIRESTORE ---
+                        const busDocRef = doc(db, "live_buses", busNumber);
+                        setDoc(busDocRef, {
+                            routeNumber: routeNumber,
+                            location: { latitude, longitude },
+                            timestamp: new Date() // Good practice to store a timestamp
+                        });
+                    }, 
+                    // ERROR CALLBACK
+                    (error) => {
+                        console.error("Geolocation Error:", error);
+                        alert("Could not get your location. Please ensure location services are enabled and permissions are granted. Tracking will be stopped.");
+                        stopTracking(busNumber); 
+                    },
+                    // OPTIONS
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                alert("Geolocation is not supported by your browser. Tracking cannot start.");
+                stopTracking(busNumber);
+            }
+
+            // Ripple animation
             const ripple = document.createElement('span');
             ripple.classList.add('ripple');
-            
             const rect = powerButton.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            ripple.style.width = ripple.style.height = `${size}px`;
-            ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
-            ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
-            
-            ripple.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+            ripple.style.width = ripple.style.height = `${rect.width}px`;
+            ripple.style.left = `${e.clientX - rect.left - rect.width / 2}px`;
+            ripple.style.top = `${e.clientY - rect.top - rect.height / 2}px`;
             powerButton.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        }
 
-            setTimeout(() => {
-                ripple.remove();
-            }, 600);
-
-            if (isActive) {
-                statusText.textContent = 'Tap to Stop Tracking';
-                statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-green-500">ACTIVE</span>`;
-                console.log('Tracking started...');
-            } else {
-                statusText.textContent = 'Tap to Start Tracking';
-                statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-red-500">INACTIVE</span>`;
-                console.log('Tracking stopped.');
+        function stopTracking(busNumber) {
+            isTracking = false;
+            powerButton.classList.remove('active');
+            statusText.textContent = 'Tap to Start Tracking';
+            statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-red-500">INACTIVE</span>`;
+            
+            // Stop watching the GPS
+            if (locationWatcher) {
+                navigator.geolocation.clearWatch(locationWatcher);
+                locationWatcher = null;
             }
-        });
+
+            // --- STEP 1.3: DELETE DOCUMENT FROM FIRESTORE ---
+            if (busNumber) {
+                const busDocRef = doc(db, "live_buses", busNumber);
+                deleteDoc(busDocRef);
+                console.log(`Tracking stopped for ${busNumber}. Document deleted.`);
+            }
+        }
     }
+
 
     // --- Passenger Track Page Logic ---
     const trackRouteBtn = document.getElementById('trackRouteBtn');
