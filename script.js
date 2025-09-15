@@ -30,6 +30,28 @@ const authenticate = async () => {
 authenticate();
 
 
+// --- MAP INITIALIZATION LOGIC (SOLUTION IMPLEMENTED) ---
+// Make map variables global so they can be accessed by both initMap and the button click handler.
+let map = null;
+let busMarkers = {};
+let unsubscribe = null;
+
+// Define initMap in the global scope so the Google Maps script can always find it.
+window.initMap = function() {
+    const mapEl = document.getElementById('map');
+    if (mapEl) {
+        map = new google.maps.Map(mapEl, {
+            center: { lat: 22.5726, lng: 88.3639 }, // Kolkata
+            zoom: 12,
+        });
+        console.log('Google Map initialized successfully.');
+    } else {
+        // This case handles if track.html isn't the current page.
+        console.log('Map element not found on this page.');
+    }
+};
+
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Logic for index.html ---
@@ -84,7 +106,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const routeNumberInput = document.getElementById('routeNumber');
         const statusText = document.getElementById('status-text');
         const statusDiv = document.getElementById('status');
-        
+
+
+
+        //Check for a saved tracking session when the page loads
+        const checkPersistedSession = () => {
+            const persistedIsTracking = localStorage.getItem('isTrackingActive');
+            if (persistedIsTracking === 'true') {
+                const busNumber = localStorage.getItem('busNumber');
+                const routeNumber = localStorage.getItem('routeNumber');
+                if (busNumber && routeNumber) {
+                    busNumberInput.value = busNumber;
+                    routeNumberInput.value = routeNumber;
+                    // Automatically restart the tracking
+                    startTracking(busNumber, routeNumber);
+                }
+            }
+        };
+
+        checkPersistedSession(); // Run the check as soon as the page is ready
+
         powerButton.addEventListener('click', async (e) => {
             if (isTracking) {
                 // If we are already tracking, this button press means STOP.
@@ -119,10 +160,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         function startTracking(busNumber, routeNumber, e) {
+            if (isTracking) return; // Prevent multiple watchers
             isTracking = true;
             powerButton.classList.add('active');
             statusText.textContent = 'Tap to Stop Tracking';
             statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-green-500">ACTIVE</span>`;
+
+            // ** NEW: Save session state to localStorage **
+            localStorage.setItem('isTrackingActive', 'true');
+            localStorage.setItem('busNumber', busNumber);
+            localStorage.setItem('routeNumber', routeNumber);
 
             // --- STEP 1.1: ACTIVATE GPS TRACKING ---
             if (navigator.geolocation) {
@@ -166,11 +213,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function stopTracking(busNumber) {
+            if (!busNumber) {
+                busNumber = localStorage.getItem('busNumber');
+            }
             isTracking = false;
             powerButton.classList.remove('active');
             statusText.textContent = 'Tap to Start Tracking';
             statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-red-500">INACTIVE</span>`;
             
+           // ** NEW: Clear the saved session state **
+            localStorage.removeItem('isTrackingActive');
+            localStorage.removeItem('busNumber');
+            localStorage.removeItem('routeNumber');
+          
             // Stop watching the GPS
             if (locationWatcher) {
                 navigator.geolocation.clearWatch(locationWatcher);
