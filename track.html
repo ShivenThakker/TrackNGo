@@ -14,6 +14,7 @@
             width: 100%;
             border-radius: 1rem;
             border: 2px solid #e5e7eb;
+            background-color: #f3f4f6; /* A light gray background before the map loads */
         }
     </style>
 </head>
@@ -37,19 +38,17 @@
 
             <!-- Map Container -->
             <div id="map-container" class="mt-4">
-                 <div id="map" class="bg-gray-200 flex items-center justify-center">
-                    <p class="text-gray-500">Map will be displayed here</p>
+                 <div id="map" class="flex items-center justify-center">
+                    <p class="text-gray-500">Enter a route to see the map</p>
                  </div>
             </div>
              <div id="eta-info" class="text-center mt-4 text-gray-600 font-medium">
-                <!-- ETA information will be populated here by the script -->
+                <!-- Status information will be populated here by the script -->
             </div>
         </div>
     </main>
     
-    <!-- Google Maps API Script -->
-    <!-- IMPORTANT: Replace "YOUR_GOOGLE_MAPS_API_KEY" with your actual API key -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB16BsmVQum7zZGNCzpJ5mW0sysJyuS7yo&callback=initMap" defer></script>
     
     <script src="script.js" type="module"></script>
 </body>
