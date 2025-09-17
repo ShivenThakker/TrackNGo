@@ -162,6 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
         function startTracking(busNumber, routeNumber, e) {
             if (isTracking) return; // Prevent multiple watchers
             isTracking = true;
+
+            busNumberInput.disabled = true;
+            routeNumberInput.disabled = true;
+          
             powerButton.classList.add('active');
             statusText.textContent = 'Tap to Stop Tracking';
             statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-green-500">ACTIVE</span>`;
@@ -217,6 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 busNumber = localStorage.getItem('busNumber');
             }
             isTracking = false;
+
+            busNumberInput.disabled = false;
+            routeNumberInput.disabled = false;
+            busNumberInput.value = '';
+            routeNumberInput.value = '';
+          
             powerButton.classList.remove('active');
             statusText.textContent = 'Tap to Start Tracking';
             statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-red-500">INACTIVE</span>`;
