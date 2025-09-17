@@ -254,44 +254,141 @@ document.addEventListener('DOMContentLoaded', () => {
     const trackRouteBtn = document.getElementById('trackRouteBtn');
     if(trackRouteBtn) {
         
-        trackRouteBtn.addEventListener('click', () => {
-            const routeNumber = document.getElementById('routeNumberInput').value.trim().toUpperCase();
-            if (!routeNumber) {
-                alert("Please enter a Route Number.");
-                return;
-            }
+trackRouteBtn.addEventListener('click', () => {
+        const routeNumber = document.getElementById('routeNumberInput').value.trim().toUpperCase();
+        if (!routeNumber) {
+            alert("Please enter a Route Number.");
+            return;
+        }
 
-            if (unsubscribe) unsubscribe();
-            Object.values(busMarkers).forEach(marker => marker.setMap(null));
-            busMarkers = {};
+        // --- NEW: Get User's Location First ---
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
 
-            const q = query(collection(db, "live_buses"), where("routeNumber", "==", routeNumber));
+        // Show a loading/locating message
+        document.getElementById('eta-info').textContent = 'Getting your location...';
 
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                document.getElementById('eta-info').textContent = snapshot.empty 
-                    ? `No active buses found for route ${routeNumber}.`
-                    : `Tracking ${snapshot.size} bus(es) on route ${routeNumber}.`;
-                
-                snapshot.docChanges().forEach((change) => {
-                    const busData = change.doc.data();
-                    const busId = change.doc.id;
-                    const position = { lat: busData.location.latitude, lng: busData.location.longitude };
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userPosition = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                console.log("User position:", userPosition);
 
-                    if (change.type === "added" || change.type === "modified") {
-                        if (!busMarkers[busId]) {
-                            busMarkers[busId] = new google.maps.Marker({ position, map, title: busId });
-                        } else {
-                            busMarkers[busId].setPosition(position);
-                        }
-                    } else if (change.type === "removed") {
-                        if (busMarkers[busId]) {
-                            busMarkers[busId].setMap(null);
-                            delete busMarkers[busId];
-                        }
-                    }
+                // Center map on the user
+                map.setCenter(userPosition);
+                map.setZoom(14); // Zoom in closer
+
+                // Remove old user marker if it exists
+                if (userMarker) {
+                    userMarker.setMap(null);
+                }
+
+                // Add a new marker for the user's location
+                userMarker = new google.maps.Marker({
+                    position: userPosition,
+                    map: map,
+                    title: "Your Location",
+                    // Optional: Use a different icon for the user
+                    // icon: 'images/user-icon.png'
                 });
+
+                // Now that we have the user's location, start tracking the bus
+                startBusTracking(routeNumber, userPosition);
+            },
+            () => {
+                alert("Unable to retrieve your location. Please enable location services.");
+                document.getElementById('eta-info').textContent = 'Location access denied.';
+            }
+        );
+    });
+
+    function startBusTracking(routeNumber, userPosition) {
+        // Clear previous tracking data
+        if (unsubscribe) unsubscribe();
+        Object.values(busMarkers).forEach(marker => marker.setMap(null));
+        Object.values(directionsRenderers).forEach(renderer => renderer.setMap(null));
+        busMarkers = {};
+        directionsRenderers = {};
+
+        const q = query(collection(db, "live_buses"), where("routeNumber", "==", routeNumber));
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+            document.getElementById('eta-info').textContent = snapshot.empty
+                ? `No active buses found for route ${routeNumber}.`
+                : `Tracking ${snapshot.size} bus(es) on route ${routeNumber}.`;
+
+            snapshot.docChanges().forEach((change) => {
+                const busData = change.doc.data();
+                const busId = change.doc.id;
+                const busPosition = { lat: busData.location.latitude, lng: busData.location.longitude };
+
+                if (change.type === "added" || change.type === "modified") {
+                    // --- MODIFIED: Create or update bus marker with custom icon ---
+                    if (!busMarkers[busId]) {
+                        busMarkers[busId] = new google.maps.Marker({
+                            position: busPosition,
+                            map,
+                            title: busId,
+                            icon: {
+                                url: 'images/bus-icon.png', // The path to your custom icon
+                                scaledSize: new google.maps.Size(40, 40), // Adjust size as needed
+                                anchor: new google.maps.Point(20, 20)     // Center the icon
+                            }
+                        });
+                    } else {
+                        busMarkers[busId].setPosition(busPosition);
+                    }
+                    // --- NEW: Calculate and display the route from bus to user ---
+                    calculateAndDisplayRoute(busId, busPosition, userPosition);
+
+                } else if (change.type === "removed") {
+                    if (busMarkers[busId]) {
+                        busMarkers[busId].setMap(null);
+                        delete busMarkers[busId];
+                    }
+                    // --- NEW: Remove the route line when a bus stops tracking ---
+                    if (directionsRenderers[busId]) {
+                        directionsRenderers[busId].setMap(null);
+                        delete directionsRenderers[busId];
+                    }
+                }
             });
         });
     }
+
+    function calculateAndDisplayRoute(busId, origin, destination) {
+        // Create a new DirectionsRenderer if one doesn't exist for this bus
+        if (!directionsRenderers[busId]) {
+            directionsRenderers[busId] = new google.maps.DirectionsRenderer({
+                map: map,
+                suppressMarkers: true, // We use our own custom markers
+                preserveViewport: true, // Don't let the map zoom out on its own
+                polylineOptions: {
+                    strokeColor: '#1E40AF', // A nice blue color for the route
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8
+                }
+            });
+        }
+
+        const request = {
+            origin: origin,
+            destination: destination,
+            travelMode: 'DRIVING' // Assume driving route
+        };
+
+        directionsService.route(request, (result, status) => {
+            if (status == 'OK') {
+                directionsRenderers[busId].setDirections(result);
+            } else {
+                console.error('Directions request failed due to ' + status);
+            }
+        });
+    }
+}
 window.initMap = window.initMap;
 }); 
