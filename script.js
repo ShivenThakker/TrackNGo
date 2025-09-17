@@ -35,6 +35,9 @@ authenticate();
 let map = null;
 let busMarkers = {};
 let unsubscribe = null;
+let userMarker = null;
+let directionsService = null;
+let directionsRenderers = {};
 
 // Define initMap in the global scope so the Google Maps script can always find it.
 window.initMap = function() {
@@ -44,6 +47,7 @@ window.initMap = function() {
             center: { lat: 22.5726, lng: 88.3639 }, // Kolkata
             zoom: 12,
         });
+        directionsService = new google.maps.DirectionsService();
         console.log('Google Map initialized successfully.');
     } else {
         // This case handles if track.html isn't the current page.
