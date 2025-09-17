@@ -118,8 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (busNumber && routeNumber) {
                     busNumberInput.value = busNumber;
                     routeNumberInput.value = routeNumber;
-                    // Automatically restart the tracking
-                    startTracking(busNumber, routeNumber);
                 }
             }
         };
