@@ -245,16 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Passenger Track Page Logic ---
     const trackRouteBtn = document.getElementById('trackRouteBtn');
     if(trackRouteBtn) {
-        let map;
-        let busMarkers = {};
-        let unsubscribe = null;
-
-        window.initMap = () => {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 22.5726, lng: 88.3639 },
-                zoom: 12,
-            });
-        };
         
         trackRouteBtn.addEventListener('click', () => {
             const routeNumber = document.getElementById('routeNumberInput').value.trim().toUpperCase();
