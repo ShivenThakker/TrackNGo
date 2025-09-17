@@ -285,4 +285,5 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+window.initMap = window.initMap;
 }); 
