@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         setDoc(busDocRef, {
                             routeNumber: routeNumber,
                             location: { latitude, longitude },
-                            timestamp: new Date() // Good practice to store a timestamp
+                            timestamp: expiryTime // Good practice to store a timestamp
                         });
                     }, 
                     // ERROR CALLBACK
