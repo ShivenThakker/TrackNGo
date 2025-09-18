@@ -187,6 +187,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // --- STEP 1.2: WRITE TO FIRESTORE ---
                         const busDocRef = doc(db, "live_buses", busNumber);
+
+                        const expiryTime = new Date();
+                        expiryTime.setMinutes(expiryTime.getMinutes() + 2);
+                      
                         setDoc(busDocRef, {
                             routeNumber: routeNumber,
                             location: { latitude, longitude },
