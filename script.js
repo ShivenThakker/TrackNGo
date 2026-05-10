@@ -3,33 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// --- Firebase Initialization ---
-const firebaseConfig = {
-  apiKey: "REDACTED",
-  authDomain: "trackngo-c145b.firebaseapp.com",
-  projectId: "trackngo-c145b",
-  storageBucket: "trackngo-c145b.appspot.com", // Corrected the URL
-  messagingSenderId: "807204484538",
-  appId: "1:807204484538:web:2323924afd9ce2e9779983",
-  measurementId: "G-1773Y9KEDT"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-const authenticate = async () => {
-    try {
-        await signInAnonymously(auth);
-        console.log("Authentication successful.");
-    } catch (error) {
-        console.error("Firebase Auth Error:", error);
-    }
-};
-
-authenticate();
-
-
 // --- MAP INITIALIZATION LOGIC (SOLUTION IMPLEMENTED) ---
 // Make map variables global so they can be accessed by both initMap and the button click handler.
 let map = null;
@@ -38,6 +11,34 @@ let unsubscribe = null;
 let userMarker = null;
 let directionsService = null;
 let directionsRenderers = {};
+let mapsScriptLoading = false;
+
+function loadGoogleMapsScript() {
+    if (window.google && window.google.maps) {
+        if (typeof window.initMap === 'function') {
+            window.initMap();
+        }
+        return;
+    }
+
+    if (mapsScriptLoading) return;
+
+    if (!window.GOOGLE_MAPS_API_KEY) {
+        console.error('Google Maps API key not loaded!');
+        return;
+    }
+
+    mapsScriptLoading = true;
+    const googleMapsScript = document.createElement('script');
+    googleMapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&callback=initMap`;
+    googleMapsScript.async = true;
+    googleMapsScript.defer = true;
+    googleMapsScript.dataset.googleMaps = 'true';
+    googleMapsScript.onerror = () => {
+        console.error('Failed to load Google Maps script.');
+    };
+    document.head.appendChild(googleMapsScript);
+}
 
 // Define initMap in the global scope so the Google Maps script can always find it.
 window.initMap = function() {
@@ -57,6 +58,32 @@ window.initMap = function() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Firebase Initialization ---
+    // Firebase config is loaded from config.js which should be included before this script
+    if (!window.firebaseConfig) {
+        console.error('Firebase configuration not loaded!');
+        return;
+    }
+
+    const app = initializeApp(window.firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const authenticate = async () => {
+        try {
+            await signInAnonymously(auth);
+            console.log("Authentication successful.");
+        } catch (error) {
+            console.error("Firebase Auth Error:", error);
+        }
+    };
+
+    authenticate();
+
+    // Load Google Maps only on pages that contain the map container
+    if (document.getElementById('map')) {
+        loadGoogleMapsScript();
+    }
 
     // --- Logic for index.html ---
     const getStartedBtn = document.getElementById('getStartedBtn');
@@ -91,9 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = 'track.html';
         });
     }
-    
+
     const findNearbyBtn = document.getElementById('find-nearby-btn');
-    if(findNearbyBtn) {
+    if (findNearbyBtn) {
         findNearbyBtn.addEventListener('click', (e) => {
             e.preventDefault();
             console.log("Finding nearby bus stops...");
@@ -101,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-      // --- Logic for conductor.html ---
+    // --- Logic for conductor.html ---
     const powerButton = document.getElementById('power-button');
     if (powerButton) {
         let isTracking = false;
@@ -111,9 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusText = document.getElementById('status-text');
         const statusDiv = document.getElementById('status');
 
-
-
-        //Check for a saved tracking session when the page loads
+        // Check for a saved tracking session when the page loads
         const checkPersistedSession = () => {
             const persistedIsTracking = localStorage.getItem('isTrackingActive');
             if (persistedIsTracking === 'true') {
@@ -126,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        checkPersistedSession(); // Run the check as soon as the page is ready
+        checkPersistedSession();
 
         powerButton.addEventListener('click', async (e) => {
             if (isTracking) {
@@ -167,12 +192,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             busNumberInput.disabled = true;
             routeNumberInput.disabled = true;
-          
+
             powerButton.classList.add('active');
             statusText.textContent = 'Tap to Stop Tracking';
             statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-green-500">ACTIVE</span>`;
 
-            // ** NEW: Save session state to localStorage **
+            // Save session state to localStorage
             localStorage.setItem('isTrackingActive', 'true');
             localStorage.setItem('busNumber', busNumber);
             localStorage.setItem('routeNumber', routeNumber);
@@ -184,24 +209,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     (position) => {
                         const { latitude, longitude } = position.coords;
                         console.log(`New location found for ${busNumber}:`, { latitude, longitude });
-                        
+
                         // --- STEP 1.2: WRITE TO FIRESTORE ---
                         const busDocRef = doc(db, "live_buses", busNumber);
 
                         const expiryTime = new Date();
                         expiryTime.setMinutes(expiryTime.getMinutes() + 2);
-                      
+
                         setDoc(busDocRef, {
                             routeNumber: routeNumber,
                             location: { latitude, longitude },
                             timestamp: expiryTime // Good practice to store a timestamp
                         });
-                    }, 
+                    },
                     // ERROR CALLBACK
                     (error) => {
                         console.error("Geolocation Error:", error);
                         alert("Could not get your location. Please ensure location services are enabled and permissions are granted. Tracking will be stopped.");
-                        stopTracking(busNumber); 
+                        stopTracking(busNumber);
                     },
                     // OPTIONS
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -232,16 +257,16 @@ document.addEventListener('DOMContentLoaded', () => {
             routeNumberInput.disabled = false;
             busNumberInput.value = '';
             routeNumberInput.value = '';
-          
+
             powerButton.classList.remove('active');
             statusText.textContent = 'Tap to Start Tracking';
             statusDiv.innerHTML = `Status: <span class="text-2xl font-bold text-red-500">INACTIVE</span>`;
-            
-           // ** NEW: Clear the saved session state **
+
+            // Clear the saved session state
             localStorage.removeItem('isTrackingActive');
             localStorage.removeItem('busNumber');
             localStorage.removeItem('routeNumber');
-          
+
             // Stop watching the GPS
             if (locationWatcher) {
                 navigator.geolocation.clearWatch(locationWatcher);
@@ -257,146 +282,150 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     // --- Passenger Track Page Logic ---
     const trackRouteBtn = document.getElementById('trackRouteBtn');
-    if(trackRouteBtn) {
-        
-trackRouteBtn.addEventListener('click', () => {
-        const routeNumber = document.getElementById('routeNumberInput').value.trim().toUpperCase();
-        if (!routeNumber) {
-            alert("Please enter a Route Number.");
-            return;
-        }
+    if (trackRouteBtn) {
+        trackRouteBtn.addEventListener('click', () => {
+            const routeNumber = document.getElementById('routeNumberInput').value.trim().toUpperCase();
+            if (!routeNumber) {
+                alert("Please enter a Route Number.");
+                return;
+            }
 
-        // --- NEW: Get User's Location First ---
-        if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser.");
-            return;
-        }
+            // --- NEW: Get User's Location First ---
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
 
-        // Show a loading/locating message
-        document.getElementById('eta-info').textContent = 'Getting your location...';
+            // Show a loading/locating message
+            document.getElementById('eta-info').textContent = 'Getting your location...';
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const userPosition = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
-                console.log("User position:", userPosition);
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    console.log("User position:", userPosition);
 
-                // Center map on the user
-                map.setCenter(userPosition);
-                map.setZoom(14); // Zoom in closer
+                    if (!map) {
+                        console.error("Map not initialized");
+                        return;
+                    }
+                    map.setCenter(userPosition);
+                    map.setZoom(14); // Zoom in closer
 
-                // Remove old user marker if it exists
-                if (userMarker) {
-                    userMarker.setMap(null);
+                    // Remove old user marker if it exists
+                    if (userMarker) {
+                        userMarker.setMap(null);
+                    }
+                    // Add a new marker for the user's location
+                    userMarker = new google.maps.Marker({
+                        position: userPosition,
+                        map: map,
+                        title: "Your Location"
+                    });
+
+                    // Now that we have the user's location, start tracking the bus
+                    startBusTracking(routeNumber, userPosition);
+                },
+                () => {
+                    alert("Unable to retrieve your location. Please enable location services.");
+                    document.getElementById('eta-info').textContent = 'Location access denied.';
                 }
+            );
+        });
 
-                // Add a new marker for the user's location
-                userMarker = new google.maps.Marker({
-                    position: userPosition,
-                    map: map,
-                    title: "Your Location",
-                    // Optional: Use a different icon for the user
-                    // icon: 'images/user-icon.png'
+        function startBusTracking(routeNumber, userPosition) {
+            // Clear previous tracking data
+            if (unsubscribe) unsubscribe();
+            Object.values(busMarkers).forEach(marker => marker.setMap(null));
+            Object.values(directionsRenderers).forEach(renderer => renderer.setMap(null));
+            busMarkers = {};
+            directionsRenderers = {};
+
+            const q = query(collection(db, "live_buses"), where("routeNumber", "==", routeNumber));
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                document.getElementById('eta-info').textContent = snapshot.empty
+                    ? `No active buses found for route ${routeNumber}.`
+                    : `Tracking ${snapshot.size} bus(es) on route ${routeNumber}.`;
+
+                snapshot.docChanges().forEach((change) => {
+                    const busData = change.doc.data();
+                    const busId = change.doc.id;
+                    const busPosition = { lat: busData.location.latitude, lng: busData.location.longitude };
+
+                    if (change.type === "added" || change.type === "modified") {
+                        // Check if map is initialized
+                        if (!map) {
+                            console.error("Map not initialized");
+                            return;
+                        }
+                        if (!busMarkers[busId]) {
+                            busMarkers[busId] = new google.maps.Marker({
+                                position: busPosition,
+                                map,
+                                title: busId,
+                                icon: {
+                                    url: 'images/bus-icon.png',
+                                    scaledSize: new google.maps.Size(40, 40),
+                                    anchor: new google.maps.Point(20, 20)
+                                }
+                            });
+                        } else {
+                            busMarkers[busId].setPosition(busPosition);
+                        }
+                        // Calculate and display the route from bus to user
+                        calculateAndDisplayRoute(busId, busPosition, userPosition);
+                    } else if (change.type === "removed") {
+                        if (busMarkers[busId]) {
+                            busMarkers[busId].setMap(null);
+                            delete busMarkers[busId];
+                        }
+                        // Remove the route line when a bus stops tracking
+                        if (directionsRenderers[busId]) {
+                            directionsRenderers[busId].setMap(null);
+                            delete directionsRenderers[busId];
+                        }
+                    }
                 });
-
-                // Now that we have the user's location, start tracking the bus
-                startBusTracking(routeNumber, userPosition);
-            },
-            () => {
-                alert("Unable to retrieve your location. Please enable location services.");
-                document.getElementById('eta-info').textContent = 'Location access denied.';
-            }
-        );
-    });
-
-    function startBusTracking(routeNumber, userPosition) {
-        // Clear previous tracking data
-        if (unsubscribe) unsubscribe();
-        Object.values(busMarkers).forEach(marker => marker.setMap(null));
-        Object.values(directionsRenderers).forEach(renderer => renderer.setMap(null));
-        busMarkers = {};
-        directionsRenderers = {};
-
-        const q = query(collection(db, "live_buses"), where("routeNumber", "==", routeNumber));
-
-        unsubscribe = onSnapshot(q, (snapshot) => {
-            document.getElementById('eta-info').textContent = snapshot.empty
-                ? `No active buses found for route ${routeNumber}.`
-                : `Tracking ${snapshot.size} bus(es) on route ${routeNumber}.`;
-
-            snapshot.docChanges().forEach((change) => {
-                const busData = change.doc.data();
-                const busId = change.doc.id;
-                const busPosition = { lat: busData.location.latitude, lng: busData.location.longitude };
-
-                if (change.type === "added" || change.type === "modified") {
-                    // --- MODIFIED: Create or update bus marker with custom icon ---
-                    if (!busMarkers[busId]) {
-                        busMarkers[busId] = new google.maps.Marker({
-                            position: busPosition,
-                            map,
-                            title: busId,
-                            icon: {
-                                url: 'images/bus-icon.png', // The path to your custom icon
-                                scaledSize: new google.maps.Size(40, 40), // Adjust size as needed
-                                anchor: new google.maps.Point(20, 20)     // Center the icon
-                            }
-                        });
-                    } else {
-                        busMarkers[busId].setPosition(busPosition);
-                    }
-                    // --- NEW: Calculate and display the route from bus to user ---
-                    calculateAndDisplayRoute(busId, busPosition, userPosition);
-
-                } else if (change.type === "removed") {
-                    if (busMarkers[busId]) {
-                        busMarkers[busId].setMap(null);
-                        delete busMarkers[busId];
-                    }
-                    // --- NEW: Remove the route line when a bus stops tracking ---
-                    if (directionsRenderers[busId]) {
-                        directionsRenderers[busId].setMap(null);
-                        delete directionsRenderers[busId];
-                    }
-                }
-            });
-        });
-    }
-
-    function calculateAndDisplayRoute(busId, origin, destination) {
-        // Create a new DirectionsRenderer if one doesn't exist for this bus
-        if (!directionsRenderers[busId]) {
-            directionsRenderers[busId] = new google.maps.DirectionsRenderer({
-                map: map,
-                suppressMarkers: true, // We use our own custom markers
-                preserveViewport: true, // Don't let the map zoom out on its own
-                polylineOptions: {
-                    strokeColor: '#1E40AF', // A nice blue color for the route
-                    strokeWeight: 5,
-                    strokeOpacity: 0.8
-                }
             });
         }
 
-        const request = {
-            origin: origin,
-            destination: destination,
-            travelMode: 'DRIVING' // Assume driving route
-        };
-
-        directionsService.route(request, (result, status) => {
-            if (status == 'OK') {
-                directionsRenderers[busId].setDirections(result);
-            } else {
-                console.error('Directions request failed due to ' + status);
+        function calculateAndDisplayRoute(busId, origin, destination) {
+            // Create a new DirectionsRenderer if one doesn't exist for this bus
+            if (!directionsRenderers[busId]) {
+                if (!map) {
+                    console.error("Map not initialized");
+                    return;
+                }
+                directionsRenderers[busId] = new google.maps.DirectionsRenderer({
+                    map: map,
+                    suppressMarkers: true, // We use our own custom markers
+                    preserveViewport: true, // Don't let the map zoom out on its own
+                    polylineOptions: {
+                        strokeColor: '#1E40AF',
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8
+                    }
+                });
             }
-        });
+
+            const request = {
+                origin: origin,
+                destination: destination,
+                travelMode: 'DRIVING' // Assume driving route
+            };
+
+            directionsService.route(request, (result, status) => {
+                if (status == 'OK') {
+                    directionsRenderers[busId].setDirections(result);
+                } else {
+                    console.error('Directions request failed due to ' + status);
+                }
+            });
+        }
     }
-}
-window.initMap = window.initMap;
-}); 
+});
