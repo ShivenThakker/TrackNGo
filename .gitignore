@@ -1,0 +1,5 @@
+# Environment variables
+config.js
+.env
+.env.local
+.firebase/
