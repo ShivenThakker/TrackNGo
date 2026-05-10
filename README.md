@@ -21,6 +21,8 @@
 
 <br/>
 
+### *Your bus. On your time.*
+
 > **TrackNGo** bridges the gap between bus conductors and passengers — a live, anonymous, location-sharing system that works right in your browser. No app to download. No account to create. Just open and go.
 
 <br/>
@@ -202,38 +204,14 @@ People on the bus who want to:
 - Internet connection
 - Location services enabled on your device
 
-### Local Setup
+### 🔗 Live Project Links
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/TrackNGo.git
-cd TrackNGo
+| | Link |
+|---|---|
+| 🌐 **Live App** | [https://trackngo-c145b.web.app](https://trackngo-c145b.web.app) |
+| 🔥 **Firebase Console** | [console.firebase.google.com/project/trackngo-c145b](https://console.firebase.google.com/project/trackngo-c145b/overview) |
 
-# 2. Configure Firebase
-#    Create a project at https://console.firebase.google.com
-#    Enable Realtime Database and Anonymous Authentication
-#    Copy your Firebase config
-
-# 3. Update firebase config in the source
-#    Open index.html (or config.js) and replace the firebaseConfig object:
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
-# 4. Open index.html in your browser — that's it!
-#    Or serve with any static file server:
-
-npx serve .
-# or
-python -m http.server 8000
-```
+Just open the live app — no installation, no setup, no account needed.
 
 > ⚠️ **Important:** At least one conductor must be actively tracking a route for passengers to see buses. If the map is empty, start a conductor session first!
 
